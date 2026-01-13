@@ -61,13 +61,12 @@
 ### 11. GPIO Control
 * Request/release GPIO
 * Set/get GPIO state
-* Debouncing
 
 ### 12. GPIO Interrupt Handling
-* IRQ numbers
 * request_irq
+* IRQ numbers
+* Debouncing
 * Top-half vs bottom-half
-* Tasklets vs workqueues
 
 ### 13. High Resolution Timers (hrtimer)
 * One-shot vs periodic timers
