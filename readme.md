@@ -58,19 +58,18 @@
 
 ## SECTION 3 — GPIO, Interrupts, Timers
 
-### 11. GPIO Control
+### [11. GPIO Control](/11_gpio_ctrl/)
 * Request/release GPIO
 * Set/get GPIO state
 
-### 12. GPIO Interrupt Handling
+### [12. GPIO Interrupt Handling](/12_gpio_irq/)
 * request_irq
 * IRQ numbers
 * Debouncing
 * Top-half vs bottom-half
 
-### 13. High Resolution Timers (hrtimer)
-* One-shot vs periodic timers
-* Callback examples
+### [13. High Resolution Timers (hrtimer)](/13_hrtimer/)
+* One-shot, periodic timers
 
 ## SECTION 4 — I2C & SPI Drivers
 
