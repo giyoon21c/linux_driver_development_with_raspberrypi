@@ -1,5 +1,8 @@
 # Linux I2C Client Driver with BMP180 Sensor
 
+### Video :
+[![Youtube Video](https://img.youtube.com/vi/PO8QOPt3g10/0.jpg)](https://www.youtube.com/watch?v=PO8QOPt3g10)
+
 ## Introduction
 In the previous video of this series, we discussed the **Linux I2C subsystem basics**.  
 We covered the following concepts:

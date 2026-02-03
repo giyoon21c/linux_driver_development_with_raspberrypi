@@ -79,7 +79,7 @@
 * Registering an I2C driver
 * Creating a device via /sys/bus/i2c/devices
 
-### 15. BMP180 Sensor Driver (Complete Example)
+### [15. BMP180 Sensor Driver (Complete Example)](/15_bmp180_i2c_sensor/)
 * Read/write registers
 * Calibration
 * Temperature & pressure reading
