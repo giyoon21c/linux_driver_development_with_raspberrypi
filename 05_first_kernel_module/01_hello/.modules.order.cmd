@@ -1,0 +1,1 @@
+savedcmd_/home/dumble/git/mpcoding-ldd/05_first_kernel_module/01_hello/modules.order := {   echo /home/dumble/git/mpcoding-ldd/05_first_kernel_module/01_hello/hello.o; :; } > /home/dumble/git/mpcoding-ldd/05_first_kernel_module/01_hello/modules.order

@@ -1,0 +1,1 @@
+savedcmd_/home/dumble/git/mpcoding-ldd/05_first_kernel_module/02_log_levels/modules.order := {   echo /home/dumble/git/mpcoding-ldd/05_first_kernel_module/02_log_levels/log_levels.o; :; } > /home/dumble/git/mpcoding-ldd/05_first_kernel_module/02_log_levels/modules.order

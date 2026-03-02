@@ -1,0 +1,1 @@
+savedcmd_/home/dumble/git/mpcoding-ldd/05_first_kernel_module/02_log_levels/Module.symvers :=  scripts/mod/modpost -M -m -a      -o /home/dumble/git/mpcoding-ldd/05_first_kernel_module/02_log_levels/Module.symvers -n -T /home/dumble/git/mpcoding-ldd/05_first_kernel_module/02_log_levels/modules.order -i Module.symvers -e 
