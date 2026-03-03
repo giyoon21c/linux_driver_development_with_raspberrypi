@@ -1,0 +1,1 @@
+savedcmd_/home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/modules.order := {   echo /home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/my_cdev.o; :; } > /home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/modules.order

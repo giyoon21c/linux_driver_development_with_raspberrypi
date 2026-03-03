@@ -161,6 +161,72 @@ $ ls -lh my_mblk
 
 Read 1st 4kb of data of new device node my_mblk
 
-sudo hexdump -C my_mblk -n 512 | head
+$ sudo hexdump -C my_mblk -n 512 | head
+
+
+==
+date:
+3.3.2026
+
+topic:
+continuing on with my_cdev.C
+
+ref:
+https://youtu.be/9B-jT8QIVy8?si=RxNY11MQxv3Ad9w6
+https://github.com/madhawapolkotuwa/linux_driver_development_with_raspberrypi/tree/main/06_character_device_driver
+
+
+* building and insmod
+
+$ sudo insmod my_cdev.ko
+
+
+$ dmesg -W
+...
+[ 2629.838108] my_cdev: Character device registered, Major number: 236
+...
+
+
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ cat /proc/devices
+Character devices:
+  1 mem
+  4 /dev/vc/0
+  4 tty
+  4 ttyS
+  5 /dev/tty
+  5 /dev/console
+  5 /dev/ptmx
+  5 ttyprintk
+  7 vcs
+ 10 misc
+ 13 input
+ 14 sound
+ 29 fb
+ 81 video4linux
+ 89 i2c
+116 alsa
+128 ptm
+136 pts
+153 spi
+180 usb
+189 usb_device
+204 ttyAMA
+216 rfcomm
+226 drm
+<=================
+236 my_cdev  
+<=================
+237 media
+
+
+* here there is no /dev created yet
+
+1. let's create it manually
+$ sudo mknod /dev/my_cdev c 236 0
+
+2. verify
+$ ls -lh /dev/my_cdev
+crw-r--r-- 1 root root 236, 0 Mar  3 07:18 /dev/my_cdev
+
 
 

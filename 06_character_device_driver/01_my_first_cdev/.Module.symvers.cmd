@@ -1,0 +1,1 @@
+savedcmd_/home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/Module.symvers :=  scripts/mod/modpost -M -m -a      -o /home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/Module.symvers -n -T /home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/modules.order -i Module.symvers -e 

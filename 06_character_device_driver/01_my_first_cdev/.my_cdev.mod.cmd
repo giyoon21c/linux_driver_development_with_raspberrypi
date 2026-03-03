@@ -1,0 +1,1 @@
+savedcmd_/home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/my_cdev.mod := printf '%s\n'   my_cdev.o | awk '!x[$$0]++ { print("/home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/"$$0) }' > /home/dumble/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev/my_cdev.mod
