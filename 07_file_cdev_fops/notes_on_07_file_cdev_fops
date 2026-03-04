@@ -1,0 +1,24 @@
+==
+date:
+3.4.2026
+
+topic:
+Character Device File Operations: Linux Device Driver Development with Raspberry Pi 07
+
+ref:
+https://youtu.be/zDhz6XhUZ9A?si=hqnWrcnPhIZW_maT
+
+https://github.com/madhawapolkotuwa/linux_driver_development_with_raspberrypi/tree/main/07_file_cdev_fops
+
+
+* file operations: - open, release, read, write
+
+- write to device file:
+echo "hello world" | sudo tee /dev/my_cdev0
+
+- read from device file:
+sudo cat /dev/my_cdev0
+
+
+
+
