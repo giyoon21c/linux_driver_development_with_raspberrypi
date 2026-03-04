@@ -7,6 +7,7 @@ topic:
 
 ref:
 https://youtu.be/MZDzAPh2DhA?si=u6dwUxl9JwCjRgIR
+
 https://github.com/madhawapolkotuwa/linux_driver_development_with_raspberrypi/tree/main/06_character_device_driver
 
 
@@ -229,4 +230,206 @@ $ ls -lh /dev/my_cdev
 crw-r--r-- 1 root root 236, 0 Mar  3 07:18 /dev/my_cdev
 
 
+==
+date:
+3.4.2026
 
+topic:
+continuing on lesson 06 - character device driver
+
+ref:
+https://youtu.be/MZDzAPh2DhA?si=u6dwUxl9JwCjRgIR
+
+https://github.com/madhawapolkotuwa/linux_driver_development_with_raspberrypi/tree/main/06_character_device_driver
+
+
+* creating device 
+
+----
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/fs.h>
+#include <linux/cdev.h>
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("MPCoding - LDD");
+MODULE_DESCRIPTION("Our first character device");
+
+static const char *my_device = "my_cdev";
+
+static dev_t dev_nr;
+
+static struct cdev my_cdev;
+
+static struct class *my_class;
+
+static struct file_operations fops = {
+
+};
+
+static int __init my_init(void) {
+    int status;
+    status = alloc_chrdev_region(&dev_nr, 0, MINORMASK + 1, my_device);
+    if(status){
+        pr_err("%s: character device registation failed\n", my_device);
+        return status;
+    }
+
+    cdev_init(&my_cdev, &fops);
+    my_cdev.owner = THIS_MODULE;
+
+    status = cdev_add(&my_cdev, dev_nr, MINORMASK + 1);
+    if(status){
+        pr_err("%s: error adding cdev\n", my_device);
+        goto free_device_nr;
+    }
+
+    my_class = class_create("my_class");
+    if(!my_class){
+        pr_err("%s: Could not create class my_class\n",my_device);
+        status = ENOMEM;
+        goto delete_cdev;
+    }
+
+    if(!device_create(my_class, NULL, dev_nr, NULL, "my_cdev%d", 0)){
+        pr_err("%s: Could not create device my_cdev0\n", my_device);
+        status = ENOMEM;
+        goto delete_class;
+    }
+
+    pr_info("%s: Caracter device registerd, Major number: %d Minor number: %d\n",my_device, MAJOR(dev_nr), MINOR(dev_nr));
+    pr_info("%s: Created device number under /sys/class/my_class\n", my_device);
+    pr_info("%s: Created new device node /dev/my_cdev\n", my_device);
+    return 0;
+
+delete_class:
+    class_destroy(my_class);
+
+delete_cdev:
+    cdev_del(&my_cdev);
+
+free_device_nr:
+    unregister_chrdev_region(dev_nr, MINORMASK + 1); 
+
+    return status;
+
+}
+
+static void __exit my_exit(void){
+    device_destroy(my_class, dev_nr);
+    class_destroy(my_class);
+    cdev_del(&my_cdev);
+    unregister_chrdev_region(dev_nr, MINORMASK + 1);
+    pr_info("%s: Goodbye, Kernel\n", my_device);
+}
+
+module_init(my_init);
+module_exit(my_exit);
+
+----
+
+* how to verify all this.
+
+$ sudo insmod my_cdev.ko
+
+- term#1
+$ dmesg -W
+
+[ 3793.673359] my_cdev: loading out-of-tree module taints kernel.
+[ 3793.675817] my_cdev: Caracter device registerd, Major number: 236 Minor number: 0
+[ 3793.675831] my_cdev: Created device number under /sys/class/my_class
+[ 3793.675834] my_cdev: Created new device node /dev/my_cdev
+
+
+- term#2
+$ udevadm monitor
+
+
+KERNEL[3793.643022] add      /class/my_class (class)
+KERNEL[3793.644408] add      /devices/virtual/my_class/my_cdev0 (my_class)
+KERNEL[3793.644445] add      /module/my_cdev (module)
+UDEV  [3793.651015] add      /class/my_class (class)
+UDEV  [3793.653483] add      /devices/virtual/my_class/my_cdev0 (my_class)
+UDEV  [3793.653914] add      /module/my_cdev (module)
+
+
+$ ls /dev
+
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ ls /dev
+autofs           disk       hwrng    loop1         media1     null   ram13  ram9       stdout  tty16  tty25  tty34  tty43  tty52  tty61      uinput   vcs4   vcsa6     vcsu7        video15   watchdog0
+block            dma_heap   i2c-1    loop2         media2     port   ram14  random     tty     tty17  tty26  tty35  tty44  tty53  tty62      urandom  vcs5   vcsa7     vga_arbiter  video16   zero
+btrfs-control    dri        i2c-20   loop3         media3     ppp    ram15  rfkill     tty0    tty18  tty27  tty36  tty45  tty54  tty63      v4l      vcs6   vcsm-cma  vhci         video18   zram0
+bus              fd         i2c-21   loop4         mem        ptmx   ram2   serial0    tty1    tty19  tty28  tty37  tty46  tty55  tty7       vchiq    vcs7   vcsu      vhost-net    video19
+cec0             full       initctl  loop5         mmcblk0    pts    ram3   shm        tty10   tty2   tty29  tty38  tty47  tty56  tty8       vcio     vcsa   vcsu1     vhost-vsock  video20
+cec1             fuse       input    loop6         mmcblk0p1  ram0   ram4   snd        tty11   tty20  tty3   tty39  tty48  tty57  tty9       vc-mem   vcsa1  vcsu2     video10      video21
+char             gpiochip0  kmsg     loop7         mmcblk0p2  ram1   ram5   spidev0.0  tty12   tty21  tty30  tty4   tty49  tty58  ttyprintk  vcs      vcsa2  vcsu3     video11      video22
+console          gpiochip1  kvm      loop-control  mqueue     ram10  ram6   spidev0.1  tty13   tty22  tty31  tty40  tty5   tty59  ttyS0      vcs1     vcsa3  vcsu4     video12      video23
+cpu_dma_latency  gpiochip4  log      mapper        my_cdev0   ram11  ram7   stderr     tty14   tty23  tty32  tty41  tty50  tty6   udmabuf    vcs2     vcsa4  vcsu5     video13      video31
+cuse             gpiomem    loop0    media0        net        ram12  ram8   stdin      tty15   tty24  tty33  tty42  tty51  tty60  uhid       vcs3     vcsa5  vcsu6     video14      watchdog
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ 
+
+
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ ls -lh /dev/my_cdev0
+crw------- 1 root root 236, 0 Mar  4 07:24 /dev/my_cdev0
+
+
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ cat /proc/devices
+Character devices:
+  1 mem
+  4 /dev/vc/0
+  4 tty
+  4 ttyS
+  5 /dev/tty
+  5 /dev/console
+  5 /dev/ptmx
+  5 ttyprintk
+  7 vcs
+ 10 misc
+ 13 input
+ 14 sound
+ 29 fb
+ 81 video4linux
+ 89 i2c
+116 alsa
+128 ptm
+136 pts
+153 spi
+180 usb
+189 usb_device
+204 ttyAMA
+216 rfcomm
+226 drm
+236 my_cdev
+...
+237 media
+
+
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ ls /sys/class
+backlight  devcoredump  extcon    hwmon      iscsi_connection  iscsi_transport  misc      nvme-generic    pps        rfkill       sound       tty       vc           zram-control
+bdi        devlink      gpio      i2c-dev    iscsi_endpoint    leds             mmc_host  nvme-subsystem  ptp        rtc          spidev      udc       vc-mem
+block      dma          gpiomem   ieee80211  iscsi_host        lirc             my_class  pci_bus         pwm        scsi_device  spi_master  uio       video4linux
+bluetooth  dma_heap     graphics  input      iscsi_iface       mdio_bus         net       phy             rc         scsi_disk    spi_slave   usbmisc   vtconsole
+bsg        drm          hidraw    iommu      iscsi_session     mem              nvme      power_supply    regulator  scsi_host    thermal     usb_role  watchdog
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ 
+
+
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ ls /sys/class/my_class
+my_cdev0
+dumble@raspberrypi:~/git/mpcoding-ldd/06_character_device_driver/01_my_first_cdev $ 
+
+
+* unloading the module
+
+- term0
+sudo rmmod my_cdev
+
+- term1
+[ 4071.819910] my_cdev: Goodbye, Kernel
+
+- term2
+KERNEL[4071.786596] remove   /devices/virtual/my_class/my_cdev0 (my_class)
+KERNEL[4071.786769] remove   /class/my_class (class)
+KERNEL[4071.787540] remove   /module/my_cdev (module)
+UDEV  [4071.794055] remove   /devices/virtual/my_class/my_cdev0 (my_class)
+UDEV  [4071.795948] remove   /class/my_class (class)
+UDEV  [4071.797489] remove   /module/my_cdev (module)
