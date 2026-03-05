@@ -1,0 +1,1 @@
+savedcmd_/home/dumble/git/mpcoding-ldd/07_file_cdev_fops/01_file_ops/Module.symvers :=  scripts/mod/modpost -M -m -a      -o /home/dumble/git/mpcoding-ldd/07_file_cdev_fops/01_file_ops/Module.symvers -n -T /home/dumble/git/mpcoding-ldd/07_file_cdev_fops/01_file_ops/modules.order -i Module.symvers -e 

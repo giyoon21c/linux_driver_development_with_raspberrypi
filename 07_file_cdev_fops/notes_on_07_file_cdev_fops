@@ -21,4 +21,278 @@ sudo cat /dev/my_cdev0
 
 
 
+* file operation - my_read()
+
+
+/* read: copy data from kernel buffer -> user-space buffer*/
+static	ssize_t my_read(struct file *pFile, 
+                        char __user *pUser_buff, 
+                        size_t count, 
+                        loff_t *pOffset){
+
+    size_t bytes_to_copy, not_copied, copied;
+
+    if(mutex_lock_interruptible(&dev_mutex))
+        return -ERESTARTSYS;
+
+    pr_info("%s: read called: request=%zu, offset=%lld, \n", my_device, count, *pOffset);
+
+    // check how many bytes we can safely copy to the user space 
+    bytes_to_copy = (count + *pOffset > strlen(dev_buffer)) ? (strlen(dev_buffer) - *pOffset) : count;
+    pr_info("%s: Read will copy=%zu bytes\n", my_device, bytes_to_copy);
+
+<=============================
+
+1. Breaking Down the Logic
+The line uses a Ternary Operator (condition ? value_if_true : value_if_false).
+Let's visualize the two parts:
+
+count + *pOffset: This is where the user wants to finish reading. (count is how
+much they asked for; *pOffset is where they are currently starting).
+
+strlen(dev_buffer): This is the actual limit of your data.
+
+
+Q. how doe suser process sends count and offset to the driver?
+
+In a Linux system, the user process doesn't usually "see" the offset
+directly—the Virtual File System (VFS) and the C Standard Library handle the
+handoff.
+
+When you write a program in C or Python to read your device, the flow looks like
+this:
+
+1. the user-space call
+
+In a standard C program, the user calls the read() function:
+
+----
+// User-space code
+char buf[100];
+ssize_t nr = read(fd, buf, 50);
+----
+
+50 is the count. It is passed directly as an argument.
+
+The Offset is managed internally by the kernel's "File Description" (the struct
+file we discussed earlier). The user doesn't pass it every time unless they use
+pread().
+
+
+2. the handoff (system call interface)
+
+When read() is called, the CPU switches from User Mode to Kernel Mode via a
+system call (trap).
+
+The kernel looks up the File Descriptor (fd) in the process's open file table.
+
+It finds the struct file associated with your /dev/my_cdev.
+
+Inside that struct file, the kernel maintains a variable called f_pos (the
+current cursor position).
+
+
+3. arriving at your driver
+
+The kernel then calls your driver's .read function (the one you defined in your
+file_operations struct). It maps the arguments like this:
+
+
+User-Space   Kernel Driver               Source
+Variable     Variable
+===========  ========================    =========================
+buf          char __user *buf            The destination memory address in user-space.
+50           size_t count                The size requested by the user.
+f_pos        loff_t *pOffset             The kernel passes a pointer to the f_pos stored in struct file.
+
+
+4. updating the offset: the driver's job
+
+This is a crucial point for a Senior Test Engineer: The kernel passes the offset
+by reference (loff_t *pOffset) because it expects your driver to update it.
+
+***If you don't update it, the user will keep reading the same bytes over and over again.***
+
+----
+// Inside your my_read function (two-space indentation)
+if (copy_to_user(buf, dev_buffer + *pOffset, bytes_to_copy)) {
+  return -EFAULT;
+}
+
+// UPDATE THE OFFSET so the next read starts where this one finished
+*pOffset += bytes_to_copy; 
+
+return bytes_to_copy; // Tell the user how much they actually got
+----
+
+5. skip
+
+6. verification with strace
+
+You can actually "spy" on this handoff happening on your Ubuntu host. Run this command on any process:
+
+$ strace cat /dev/my_cdev
+
+You will see the exact system call: read(3, "", 131072) = 0.
+3: The file descriptor.
+131072: The count (cat asks for a large chunk by default).
+0: The return value (how many bytes your driver actually sent back).
+
+
+<=======================
+
+    not_copied = copy_to_user(pUser_buff, dev_buffer + *pOffset, bytes_to_copy);
+    copied = bytes_to_copy - not_copied;
+
+    *pOffset += copied;
+
+    if(not_copied)
+        pr_warn("%s: copy_to_user only copied %zu/%zu\n", my_device, copied, bytes_to_copy);
+
+    pr_info("%s: Read done: return=%zu, new offset=%lld\n", my_device, copied, *pOffset);
+
+    mutex_unlock(&dev_mutex);
+    return (ssize_t)copied;
+
+
+q. what is f_pos?
+
+Think of a physical book. The Driver is the book itself (the data). The struct
+file is a bookmark owned by the person reading it.
+
+
+1. One Driver, Many Bookmarks
+
+If you open a file once, the kernel creates a struct file. If you open it a
+second time in a different terminal, the kernel creates a second struct file.
+
+Both "bookmarks" point to your same driver.
+
+But each bookmark has its own f_pos (File Position).
+
+If Terminal A reads 10 bytes, its bookmark moves to page 10. Terminal B’s bookmark stays at page 0.
+
+
+2. The Memory "Hand-off"
+
+When the user calls read(), the kernel doesn't just send the value of the
+bookmark to your driver; it sends the address of where the bookmark is stored.
+
+Here is the sequence:
+
+a. User Space: read(fd, buf, 50);
+
+b. VFS (Virtual File System): Sees the request. It looks at the struct file for that fd.
+
+c. The Pointer: The VFS finds the variable file->f_pos inside that struct.
+
+d. The Call: The VFS calls your driver function:
+your_read(struct file *filp, char __user *buf, size_t count, loff_t *pOffset)
+
+It passes &filp->f_pos as the fourth argument (pOffset).
+
+
+3. Why pass the Pointer?
+The Kernel is being clever here. By passing the address of the bookmark (loff_t
+*pOffset), it allows you (the driver developer) to decide how the bookmark
+should move.
+
+Scenario A (Normal File): You read 10 bytes, you write *pOffset += 10;. The
+kernel's f_pos is now updated for the next time that specific user calls read.
+
+Scenario B (Live Sensor): You are reading a live ADAS camera. You don't care
+about offsets! You ignore pOffset, and the bookmark stays at 0 forever.
+
+
+4. Visualizing the "Inside" of the Kernel
+Inside include/linux/fs.h, the struct file looks roughly like this (simplified):
+
+struct file {
+  struct path            f_path;
+  const struct file_operations  *f_op;
+  loff_t                 f_pos;    // <--- THIS is what pOffset points to!
+  unsigned int           f_flags;
+  void                   *private_data; 
+};
+
+
+When your driver code does this:
+
+*pOffset += bytes_to_copy;
+
+You are directly reaching into the kernel's memory and moving the user's "bookmark."
+
+Summary
+
+f_pos is a variable sitting inside the struct file in the kernel's RAM.
+pOffset is just a "pointer" (an arrow) pointing to that specific variable.
+By changing *pOffset, you are telling the kernel: "Next time this user comes back, start from here."
+
+
+* go deep on &file->f_pos
+
+1. Breaking Down the Syntax: &filp->f_pos
+
+This expression uses three different C concepts at once. Because of operator
+precedence, it is evaluated from right to left as follows: &(filp->f_pos).
+
+. filp: A pointer holding the memory address of a struct file.
+
+. ->f_pos: The "Arrow" dereferences the pointer to find the f_pos member inside
+that specific struct.
+
+. &: The "Address-of" operator takes the memory address of that specific f_pos
+variable.
+
+The result: You aren't passing the number of the current position (e.g., 10);
+you are passing the location in RAM where that 10 is stored.
+
+
+
+2. Why the Kernel uses a Pointer (loff_t *pOffset)
+
+If the kernel passed the offset by value (just the number), your driver could
+only read the offset. It couldn't change it for the user.
+
+By passing the address (&filp->f_pos), the kernel is giving your driver "Write
+Access" to the user's bookmark.
+
+
+Action in Driver            Effect on Kernel
+=======================     ===================================================
+long long val = *pOffset;   You are reading the bookmark's current position.
+*pOffset = 0;               You are resetting the user's bookmark to the start of the file.
+*pOffset += 10;             You are advancing the bookmark for the next read() call.
+
+
+3. The "Deep" Memory Map
+
+Imagine your computer's RAM.
+The struct file for your open /dev/my_cdev is sitting at address 0xFFFF8000.
+The f_pos variable is an 8-byte integer sitting at an offset within that struct, say 0xFFFF8024.
+
+When read() is called:
+
+a. The VFS layer sees f_pos is at 0xFFFF8024.
+
+b. It calls your driver: my_read(..., 0xFFFF8024).
+
+c. In your driver, pOffset now holds the value 0xFFFF8024.
+
+d. When you do *pOffset += bytes_to_copy, the CPU goes to 0xFFFF8024 and adds the number.
+
+
+* Summary Checklist
+
+filp is the map.
+
+f_pos is the destination on the map.
+
+&filp->f_pos is the finger pointing at the destination.
+
+*pOffset is your ability to move that finger.
+
+Does this "deep dive" into the memory address clear up how the driver and kernel stay in sync?
+
+
 

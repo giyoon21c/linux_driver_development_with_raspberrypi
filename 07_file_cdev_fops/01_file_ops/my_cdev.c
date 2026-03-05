@@ -30,13 +30,18 @@ static int my_open(struct inode *pInode, struct file *pFile){
     pr_info("%s: file->f_flags: 0x%x\n", my_device, pFile->f_flags);
     return 0;
 }
+
 static int my_release(struct inode *pInode, struct file *pFile){
     pr_info("%s: my_release called, file is closed\n", my_device);
     return 0;
 }
 
 /* read: copy data from kernel buffer -> user-space buffer*/
-static	ssize_t my_read(struct file *pFile, char __user *pUser_buff, size_t count, loff_t *pOffset){
+static	ssize_t my_read(struct file *pFile, 
+                        char __user *pUser_buff, 
+                        size_t count, 
+                        loff_t *pOffset){
+
     size_t bytes_to_copy, not_copied, copied;
 
     if(mutex_lock_interruptible(&dev_mutex))
@@ -44,6 +49,7 @@ static	ssize_t my_read(struct file *pFile, char __user *pUser_buff, size_t count
 
     pr_info("%s: read called: request=%zu, offset=%lld, \n", my_device, count, *pOffset);
 
+    // check how many bytes we can safely copy to the user space 
     bytes_to_copy = (count + *pOffset > strlen(dev_buffer)) ? (strlen(dev_buffer) - *pOffset) : count;
 
     pr_info("%s: Read will copy=%zu bytes\n", my_device, bytes_to_copy);
@@ -60,7 +66,6 @@ static	ssize_t my_read(struct file *pFile, char __user *pUser_buff, size_t count
 
     mutex_unlock(&dev_mutex);
     return (ssize_t)copied;
-
 }
 
 /* write: copy data from user-space buffer -> kernel buffer */
