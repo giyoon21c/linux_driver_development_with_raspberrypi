@@ -295,4 +295,61 @@ f_pos is the destination on the map.
 Does this "deep dive" into the memory address clear up how the driver and kernel stay in sync?
 
 
+==
+date:
+3.6.2026
+
+topic:
+understanding &file->f_pos and receiver function using *pOffset in c/c++ repo
+
+ref:
+gem
+
+
+
+#include <stdio.h>
+#include <string.h>
+
+// 1. This simulates the Kernel's internal "bookmark" structure
+struct fake_file {
+  long long f_pos;      // This is the actual bookmark value
+  char buffer[1024];    // This simulates our LED driver's data
+};
+
+// 2. This is our "Driver" function. 
+// It doesn't know about 'struct fake_file'; it only knows about the pointer.
+void my_driver_read(char *user_buf, int count, long long *pOffset, char *dev_data) {
+  printf("  [Driver] User wants %d bytes starting at offset %lld\n", count, *pOffset);
+
+  // Copy data from the device to the user (simulated)
+  for (int i = 0; i < count; i++) {
+    user_buf[i] = dev_data[*pOffset + i];
+  }
+
+  // 3. THE KEY STEP: Update the bookmark in the "Kernel" memory
+  // We use the pointer to reach back into the kernel's struct
+  *pOffset += count; 
+  
+  printf("  [Driver] Updated offset to %lld\n", *pOffset);
+}
+
+int main() {
+  // Initialize our fake kernel file
+  struct fake_file my_filp;
+  my_filp.f_pos = 0; // Start at the beginning
+  strcpy(my_filp.buffer, "ADAS_DATA_LOG_001: LED_ON; LED_OFF;");
+
+  char user_receiver[100];
+
+  printf("Step 1: First Read\n");
+  // 4. THE HANDOFF: We pass the ADDRESS of f_pos using &
+  my_driver_read(user_receiver, 10, &my_filp.f_pos, my_filp.buffer);
+  printf("Result: Kernel f_pos is now %lld\n\n", my_filp.f_pos);
+
+  printf("Step 2: Second Read (Notice f_pos starts at 10)\n");
+  my_driver_read(user_receiver, 5, &my_filp.f_pos, my_filp.buffer);
+  printf("Result: Kernel f_pos is now %lld\n", my_filp.f_pos);
+
+  return 0;
+}
 
